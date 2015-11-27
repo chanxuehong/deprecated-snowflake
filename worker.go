@@ -68,8 +68,9 @@ func (wk *Worker) NextId() (int64, error) {
 		}
 		wk.mutex.Unlock() // Unlock
 	default: // timestamp < wk.lastTimestamp
+		num := wk.lastTimestamp - timestamp
 		wk.mutex.Unlock() // Unlock
-		return 0, fmt.Errorf("Clock moved backwards. Rejecting requests within %d milliseconds", wk.lastTimestamp-timestamp)
+		return 0, fmt.Errorf("Clock moved backwards. Rejecting requests within %d milliseconds", num)
 	}
 
 	id := timestamp<<timestampShift | workerId<<workerIdShift | sequence
