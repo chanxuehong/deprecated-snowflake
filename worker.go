@@ -3,6 +3,8 @@ package snowflake
 import (
 	"fmt"
 	"sync"
+
+	"github.com/chanxuehong/rand"
 )
 
 const (
@@ -17,12 +19,14 @@ const (
 	snowflakeIdMask = int64(-1) ^ (int64(-1) << snowflakeIdBits)
 )
 
+var sequenceStart = rand.Int63() & sequenceMask // Reduce the collision probability
+
 type Worker struct {
 	workerId int64
 
 	mutex         sync.Mutex
-	sequence      int64
 	lastTimestamp int64
+	sequence      int64
 }
 
 func NewWorker(workerId int64) (*Worker, error) {
@@ -31,30 +35,30 @@ func NewWorker(workerId int64) (*Worker, error) {
 	}
 	wk := &Worker{
 		workerId:      workerId,
-		sequence:      0,
 		lastTimestamp: -1,
+		sequence:      sequenceStart,
 	}
 	return wk, nil
 }
 
 func (wk *Worker) NextId() (int64, error) {
 	var (
-		timestamp = timeGen()
+		timestamp = twepochTimestamp()
 		workerId  = wk.workerId
-		sequence  int64
+		sequence  = sequenceStart
 	)
 
 	wk.mutex.Lock() // Lock
 	switch {
 	case timestamp > wk.lastTimestamp:
 		wk.lastTimestamp = timestamp
-		wk.sequence = 0
+		wk.sequence = sequenceStart
 		//sequence = wk.sequence
 		wk.mutex.Unlock() // Unlock
 	case timestamp == wk.lastTimestamp:
 		wk.sequence++
 		wk.sequence &= sequenceMask
-		if wk.sequence == 0 {
+		if wk.sequence == sequenceStart {
 			timestamp = tillNextMillis(timestamp)
 			wk.lastTimestamp = timestamp
 			//sequence = wk.sequence
