@@ -26,7 +26,7 @@ type Worker struct {
 
 	mutex         sync.Mutex
 	lastTimestamp int64
-	sequence      int64
+	lastSequence  int64
 }
 
 func NewWorker(workerId int64) (*Worker, error) {
@@ -36,7 +36,7 @@ func NewWorker(workerId int64) (*Worker, error) {
 	wk := &Worker{
 		workerId:      workerId,
 		lastTimestamp: -1,
-		sequence:      sequenceStart,
+		lastSequence:  sequenceStart,
 	}
 	return wk, nil
 }
@@ -52,20 +52,15 @@ func (wk *Worker) NextId() (int64, error) {
 	switch {
 	case timestamp > wk.lastTimestamp:
 		wk.lastTimestamp = timestamp
-		wk.sequence = sequenceStart
-		//sequence = wk.sequence
+		wk.lastSequence = sequence
 		wk.mutex.Unlock() // Unlock
 	case timestamp == wk.lastTimestamp:
-		wk.sequence++
-		wk.sequence &= sequenceMask
-		if wk.sequence == sequenceStart {
+		sequence = (wk.lastSequence + 1) & sequenceMask
+		if sequence == sequenceStart {
 			timestamp = tillNextMillis(timestamp)
 			wk.lastTimestamp = timestamp
-			//sequence = wk.sequence
-		} else {
-			//wk.lastTimestamp = timestamp
-			sequence = wk.sequence
 		}
+		wk.lastSequence = sequence
 		wk.mutex.Unlock() // Unlock
 	default: // timestamp < wk.lastTimestamp
 		num := wk.lastTimestamp - timestamp
